@@ -1,0 +1,29 @@
+name: Build APK
+on: [push, workflow_dispatch]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Zip extract karo
+        run: |
+          mkdir -p /tmp/proj
+          unzip -oq "$(ls *.zip | head -n1)" -d /tmp/proj
+          P=$(dirname "$(find /tmp/proj -name settings.gradle.kts | head -n1)")
+          echo "PROJ=$P" >> $GITHUB_ENV
+
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 17 }
+
+      - uses: gradle/actions/setup-gradle@v3
+        with: { gradle-version: 8.7 }
+
+      - name: Build
+        working-directory: ${{ env.PROJ }}
+        run: gradle assembleDebug --no-daemon
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NotchCmd-apk
+          path: ${{ env.PROJ }}/app/build/outputs/apk/debug/*.apk
