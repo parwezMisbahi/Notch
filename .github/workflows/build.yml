@@ -55,7 +55,7 @@ jobs:
 
       - name: Build
         working-directory: ${{ steps.loc.outputs.dir }}
-        run: gradle assembleDebug --no-daemon
+        run: gradle assembleDebug --no-daemon -PverCode=$(date +%s)
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
