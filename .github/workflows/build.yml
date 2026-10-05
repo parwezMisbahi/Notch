@@ -13,6 +13,25 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Find the Gradle project (repo root, a sub-folder, or a zip)
+        id: loc
+        run: |
+          set -e
+          if [ -z "$(find . -name settings.gradle.kts -not -path './node_modules/*' | head -n1)" ]; then
+            for Z in $(find . -maxdepth 2 -name '*.zip' | head -n3); do
+              mkdir -p /tmp/proj
+              unzip -q -o "$Z" -d /tmp/proj || true
+            done
+          fi
+          S=$(find . /tmp/proj -name settings.gradle.kts 2>/dev/null | head -n1)
+          if [ -z "$S" ]; then
+            echo "No settings.gradle.kts found. Repo contents:"; ls -la; exit 1
+          fi
+          D=$(realpath "$(dirname "$S")")
+          echo "Gradle project: $D"
+          ls -la "$D"
+          echo "dir=$D" >> "$GITHUB_OUTPUT"
+
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
@@ -25,6 +44,7 @@ jobs:
           gradle-version: 9.3.1
 
       - name: Create signing key (only if docera.jks is missing)
+        working-directory: ${{ steps.loc.outputs.dir }}
         run: |
           if [ ! -f docera.jks ]; then
             keytool -genkeypair -v -keystore docera.jks -alias docera \
@@ -34,10 +54,11 @@ jobs:
           fi
 
       - name: Build
+        working-directory: ${{ steps.loc.outputs.dir }}
         run: gradle assembleDebug --no-daemon
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: Docera-debug-apk
-          path: app/build/outputs/apk/debug/*.apk
+          path: ${{ steps.loc.outputs.dir }}/app/build/outputs/apk/debug/*.apk
